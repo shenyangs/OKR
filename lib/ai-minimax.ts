@@ -1,5 +1,22 @@
 type MiniMaxMessageContent = string | Array<{ type?: string; text?: string }>;
 
+const MINIMAX_API_KEY_ENV_NAMES = [
+  "MINIMAX_API_KEY",
+  "MINIMAX_API_TOKEN",
+  "MINIMAX_TOKEN",
+  "NEXT_PUBLIC_MINIMAX_API_KEY"
+] as const;
+
+const MINIMAX_BASE_URL_ENV_NAMES = [
+  "MINIMAX_BASE_URL",
+  "NEXT_PUBLIC_MINIMAX_BASE_URL"
+] as const;
+
+const MINIMAX_MODEL_ENV_NAMES = [
+  "MINIMAX_MODEL",
+  "NEXT_PUBLIC_MINIMAX_MODEL"
+] as const;
+
 export async function callMiniMaxJson<T>({
   systemPrompt,
   userPrompt,
@@ -13,10 +30,10 @@ export async function callMiniMaxJson<T>({
   maxTokens?: number;
   model?: string;
 }) {
-  const apiKey = process.env.MINIMAX_API_KEY;
+  const apiKey = readEnvValue(MINIMAX_API_KEY_ENV_NAMES);
 
   if (!apiKey) {
-    throw new Error("服务端缺少 MINIMAX_API_KEY，暂时无法使用 AI 能力。");
+    throw new Error(`服务端缺少 MiniMax 密钥，已检查：${MINIMAX_API_KEY_ENV_NAMES.join("、")}。`);
   }
 
   let lastError: Error | null = null;
@@ -72,7 +89,7 @@ export async function callMiniMaxJson<T>({
 }
 
 function getMiniMaxApiUrl() {
-  const baseUrl = process.env.MINIMAX_BASE_URL?.trim();
+  const baseUrl = readEnvValue(MINIMAX_BASE_URL_ENV_NAMES);
 
   if (!baseUrl) {
     return "https://api.minimaxi.com/v1/chat/completions";
@@ -86,7 +103,18 @@ function getMiniMaxApiUrl() {
 }
 
 function getMiniMaxModel() {
-  return process.env.MINIMAX_MODEL?.trim() || "MiniMax-M2.7";
+  return readEnvValue(MINIMAX_MODEL_ENV_NAMES) || "MiniMax-M2.7";
+}
+
+function readEnvValue(names: readonly string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
 }
 
 function normalizeContent(content: MiniMaxMessageContent | undefined) {

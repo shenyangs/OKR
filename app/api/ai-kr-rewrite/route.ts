@@ -9,6 +9,8 @@ import type {
 import { callMiniMaxJson } from "@/lib/ai-minimax";
 import { normalizeConfidence, sanitizeDraftPatch } from "@/lib/ai-okr";
 
+export const runtime = "nodejs";
+
 const VALID_ROLES = new Set(["组长", "组员", "业务对接", "公关组"]);
 
 type RawModelResult = {

@@ -3,6 +3,8 @@ import { type Objective, personnelRoster } from "@/lib/data";
 import { callMiniMaxJson } from "@/lib/ai-minimax";
 import { sanitizeDraftPatch, type AiKrDraftResult } from "@/lib/ai-okr";
 
+export const runtime = "nodejs";
+
 type AiKrDraftRequest = {
   rawText: string;
   objective: Objective | null;

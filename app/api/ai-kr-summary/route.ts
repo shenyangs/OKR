@@ -7,6 +7,8 @@ import {
   type AiSummaryMode
 } from "@/lib/ai-okr";
 
+export const runtime = "nodejs";
+
 type AiKrSummaryRequest = {
   mode: AiSummaryMode;
   objective: Objective | null;

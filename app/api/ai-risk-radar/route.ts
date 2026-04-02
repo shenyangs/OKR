@@ -3,6 +3,8 @@ import { callMiniMaxJson } from "@/lib/ai-minimax";
 import { sanitizeRiskRadarResult, type AiRiskRadarResult } from "@/lib/ai-okr";
 import type { KrRiskItem } from "@/lib/risk-radar";
 
+export const runtime = "nodejs";
+
 type AiRiskRadarRequest = {
   riskItems: KrRiskItem[];
 };
