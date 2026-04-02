@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, FileUp, Plus, RotateCcw } from "lucide-react";
+import { ArrowRight, FileUp, Plus, RotateCcw, Sparkles } from "lucide-react";
+import { AiExcelImportModal } from "@/components/ai-excel-import-modal";
 import { AiKrRewritePanel } from "@/components/ai-kr-rewrite-panel";
 import { AiRiskRadar } from "@/components/ai-risk-radar";
 import { DepartmentView } from "@/components/department-view";
@@ -37,7 +38,10 @@ export function OkrDashboardPage() {
   const [creatingObjective, setCreatingObjective] = React.useState(false);
   const [creatingKrFor, setCreatingKrFor] = React.useState<Objective | null>(null);
   const [importing, setImporting] = React.useState(false);
+  const [smartImportFile, setSmartImportFile] = React.useState<File | null>(null);
+  const [smartImportOpen, setSmartImportOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const smartFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const personalTaskCount = objectives.reduce(
     (total, objective) =>
@@ -67,6 +71,17 @@ export function OkrDashboardPage() {
       setImporting(false);
       event.target.value = "";
     }
+  }
+
+  function handleAiImportSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setSmartImportFile(file);
+    setSmartImportOpen(true);
+    event.target.value = "";
   }
 
   return (
@@ -107,12 +122,28 @@ export function OkrDashboardPage() {
                   <FileUp className="mr-2 h-4 w-4" />
                   {importing ? "导入中..." : "Excel 导入"}
                 </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    smartFileInputRef.current?.click();
+                  }}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  AI 智能导入
+                </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".xlsx,.xls"
                   className="hidden"
                   onChange={handleImport}
+                />
+                <input
+                  ref={smartFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={handleAiImportSelect}
                 />
               </>
             ) : (
@@ -208,6 +239,21 @@ export function OkrDashboardPage() {
             addKeyResult(creatingKrFor.id, payload);
             setCreatingKrFor(null);
           }
+        }}
+      />
+
+      <AiExcelImportModal
+        open={smartImportOpen}
+        file={smartImportFile}
+        onOpenChange={(open) => {
+          setSmartImportOpen(open);
+          if (!open) {
+            setSmartImportFile(null);
+          }
+        }}
+        onApply={(nextObjectives) => {
+          replaceObjectives(nextObjectives);
+          setSmartImportFile(null);
         }}
       />
     </main>

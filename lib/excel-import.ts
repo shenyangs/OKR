@@ -2,6 +2,10 @@ import type { KeyResult, Objective, Personnel } from "@/lib/data";
 import { createId, parseWeight } from "@/lib/utils";
 
 type SheetRow = Array<string | number | null | undefined>;
+export type ExcelSheetPreview = {
+  sheetName: string;
+  rows: string[][];
+};
 
 function text(value: unknown) {
   return String(value ?? "").trim();
@@ -24,7 +28,7 @@ function parseNamedBlock(content: string, label: string) {
     .map((name) => name.replace(/^@/, ""));
 }
 
-function parsePersonnel(target2026: string, budgetStr: string): Personnel[] {
+export function parsePersonnelFromText(target2026: string, budgetStr: string): Personnel[] {
   const people: Personnel[] = [];
   const add = (name: string, role: Personnel["role"]) => {
     const normalized = name.trim().replace(/^@/, "");
@@ -52,7 +56,7 @@ function parsePersonnel(target2026: string, budgetStr: string): Personnel[] {
   return people;
 }
 
-function inferCompletion(progress: string) {
+export function inferCompletionFromProgress(progress: string) {
   const percent = progress.match(/(\d{1,3})\s*%/);
   if (percent) {
     return Math.max(0, Math.min(100, Number(percent[1])));
@@ -67,6 +71,40 @@ function inferCompletion(progress: string) {
   }
 
   return 20;
+}
+
+export async function readExcelPreview(
+  file: File,
+  {
+    maxSheets = 3,
+    maxRows = 60,
+    maxCols = 18
+  }: {
+    maxSheets?: number;
+    maxRows?: number;
+    maxCols?: number;
+  } = {}
+) {
+  const XLSX = (await import("xlsx")) as any;
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+
+  return workbook.SheetNames.slice(0, maxSheets).map((sheetName: string) => {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      raw: false,
+      defval: ""
+    }) as SheetRow[];
+
+    return {
+      sheetName,
+      rows: rows
+        .slice(0, maxRows)
+        .map((row) => row.slice(0, maxCols).map((cell) => text(cell)))
+        .filter((row) => row.some(Boolean))
+    } satisfies ExcelSheetPreview;
+  });
 }
 
 export async function parseObjectivesFromExcel(file: File) {
@@ -145,10 +183,10 @@ export async function parseObjectivesFromExcel(file: File) {
       target2026,
       progress,
       budgetStr,
-      personnel: parsePersonnel(target2026, budgetStr),
+      personnel: parsePersonnelFromText(target2026, budgetStr),
       metricDefinition: text(row[metricCol]),
       marchProgressLabel: "3 月进度",
-      completion: inferCompletion(progress),
+      completion: inferCompletionFromProgress(progress),
       dataProvider: text(row[dataProviderCol]) || undefined,
       interfacePerson: text(row[interfaceCol]) || undefined,
       alignedDepartments: text(row[alignDeptCol]) || undefined,
