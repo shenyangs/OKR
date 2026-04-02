@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-zinc-50 text-zinc-900;
+    font-family:
+      "SF Pro Display",
+      "SF Pro Text",
+      "PingFang SC",
+      "Hiragino Sans GB",
+      "Microsoft YaHei",
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+    background-image:
+      radial-gradient(circle at top left, rgba(191, 219, 254, 0.28), transparent 24%),
+      radial-gradient(circle at top right, rgba(233, 213, 255, 0.25), transparent 22%),
+      radial-gradient(circle at bottom left, rgba(209, 250, 229, 0.24), transparent 20%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 244, 245, 0.98));
+    background-attachment: fixed;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family:
+      "SF Mono",
+      "JetBrains Mono",
+      "IBM Plex Mono",
+      ui-monospace,
+      monospace;
+  }
+
+  ::selection {
+    background: rgba(191, 219, 254, 0.7);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-soft;
+  }
+
+  .glass-panel-strong {
+    @apply rounded-3xl border border-white/60 bg-white/80 backdrop-blur-2xl shadow-float;
+  }
+
+  .text-caption {
+    @apply font-mono text-[11px] uppercase tracking-[0.24em] text-zinc-400;
+  }
+
+  .pill-progress {
+    @apply h-2.5 overflow-hidden rounded-full bg-zinc-200/80;
+  }
+
+  .pill-progress > span {
+    @apply block h-full rounded-full bg-gradient-to-r from-sky-200 via-sky-300 to-sky-400;
+  }
+}
