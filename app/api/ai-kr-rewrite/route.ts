@@ -29,6 +29,11 @@ type RawCreateSuggestion = {
   draft?: Record<string, unknown>;
 };
 
+type RawPatchExtraction = {
+  reason?: string;
+  patch?: Record<string, unknown>;
+};
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as AiRewriteRequest;
@@ -104,6 +109,20 @@ export async function POST(request: Request) {
     });
     const result = sanitizeModelResult(parsed, objectives);
 
+    if (result.matched) {
+      try {
+        result.patch = await buildMatchedPatch({
+          rawText,
+          objectives,
+          objectiveId: result.objectiveId,
+          krId: result.krId,
+          fallbackPatch: result.patch
+        });
+      } catch {
+        // Keep the first-pass patch when richer extraction fails.
+      }
+    }
+
     if (!result.matched) {
       try {
         result.createSuggestion = await buildCreateSuggestion(rawText, objectives);
@@ -148,6 +167,87 @@ function sanitizeModelResult(modelResult: RawModelResult, objectives: AiRewriteR
     confidence,
     reason: reason || "AI 已根据标题、内容和责任人完成匹配。",
     patch: sanitizePatch(modelResult.patch, targetKr)
+  };
+}
+
+async function buildMatchedPatch({
+  rawText,
+  objectives,
+  objectiveId,
+  krId,
+  fallbackPatch
+}: {
+  rawText: string;
+  objectives: AiRewriteRequest["objectives"];
+  objectiveId: string;
+  krId: string;
+  fallbackPatch: AiRewritePatch;
+}) {
+  const targetObjective = objectives.find((objective) => objective.id === objectiveId);
+  const targetKr = targetObjective?.krs.find((kr) => kr.id === krId);
+
+  if (!targetObjective || !targetKr) {
+    return fallbackPatch;
+  }
+
+  const rawResult = await callMiniMaxJson<RawPatchExtraction>({
+    systemPrompt:
+      "你是 OKR 字段抽取助手。已经确认用户输入对应某一个已存在 KR。你的任务是把用户粘贴的整段 KR 文本尽可能完整拆成结构化字段，用于预览和覆盖。重点不是只找差异，而是尽量把文本里明确出现的标题、目标、进度、预算、责任人、指标定义等字段完整抽出来。不要编造，没有出现的字段就留空。你必须只输出一个 JSON 对象，不要输出 Markdown，不要解释。",
+    maxTokens: 1400,
+    userPrompt: [
+      "请从下面这段文本中抽取可覆盖字段。",
+      "",
+      "返回格式：",
+      "{",
+      '  "reason": "一句中文说明",',
+      '  "patch": {',
+      '    "title": "可选",',
+      '    "type": "承诺型 或 探索型",',
+      '    "target2026": "可选",',
+      '    "progress": "可选",',
+      '    "budgetStr": "可选",',
+      '    "metricDefinition": "可选",',
+      '    "marchProgressLabel": "可选",',
+      '    "dataProvider": "可选",',
+      '    "interfacePerson": "可选",',
+      '    "alignedDepartments": "可选",',
+      '    "alignedOkr": "可选",',
+      '    "personnel": [{"name": "必须从名册中选择", "role": "组长|组员|业务对接|公关组"}]',
+      "  }",
+      "}",
+      "",
+      "抽取规则：",
+      "1. 用户可能粘贴的是完整 KR 块，不要只抽变化点；文本里明确出现的字段都尽量抽出来。",
+      "2. 如果文本里出现了“标题 / KR1 / KR2 / 目标 / 进度 / 预算 / 组长 / 组员 / 责任人 / 指标定义 / 口径 / 接口人 / 协同部门”等线索，要尽量映射到对应字段。",
+      "3. 人员姓名必须从名册里选，角色必须是给定枚举。",
+      "4. 不要返回 id、weight、completion。",
+      "5. 不要因为字段和当前 KR 相似就省略；只要文本里明确写了，就可以放进 patch。",
+      "6. 没有把握的字段留空。",
+      "",
+      `人员名册：${JSON.stringify(personnelRoster, null, 2)}`,
+      "",
+      `当前 Objective：${JSON.stringify(
+        {
+          id: targetObjective.id,
+          title: targetObjective.title
+        },
+        null,
+        2
+      )}`,
+      "",
+      `当前 KR：${JSON.stringify(targetKr, null, 2)}`,
+      "",
+      "用户输入：",
+      rawText
+    ].join("\n")
+  });
+
+  const extractedPatch = sanitizePatch(rawResult.patch, targetKr);
+
+  return {
+    ...fallbackPatch,
+    ...extractedPatch,
+    personnel: extractedPatch.personnel ?? fallbackPatch.personnel
   };
 }
 

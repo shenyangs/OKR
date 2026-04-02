@@ -379,7 +379,7 @@ export function AiKrRewriteWorkspace({
                 {result.matched ? (
                   <>
                     <div className="space-y-3">
-                      <p className="text-sm font-medium text-zinc-900">待覆盖字段</p>
+                      <p className="text-sm font-medium text-zinc-900">识别出的可覆盖字段</p>
                       {patchEntries.length ? (
                         patchEntries.map(([key, value]) => (
                           <div key={String(key)} className="rounded-2xl bg-white/80 p-4">
