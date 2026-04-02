@@ -29,7 +29,9 @@ export function OkrDashboardPage() {
     addObjective,
     addKeyResult,
     deleteKeyResult,
+    lastReplaceBackup,
     replaceObjectives,
+    restoreLastReplace,
     resetObjectives
   } = useOkrData();
   const [selectedKr, setSelectedKr] = React.useState<KeyResult | null>(null);
@@ -64,6 +66,9 @@ export function OkrDashboardPage() {
     try {
       setImporting(true);
       const nextObjectives = await parseObjectivesFromExcel(file);
+      if (!window.confirm(`这会用 Excel 内容替换当前页面里的全部 OKR 数据。确认继续吗？`)) {
+        return;
+      }
       replaceObjectives(nextObjectives);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Excel 导入失败");
@@ -153,6 +158,12 @@ export function OkrDashboardPage() {
               <Button variant="ghost" onClick={resetObjectives}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 恢复原始数据
+              </Button>
+            ) : null}
+            {canEdit && lastReplaceBackup ? (
+              <Button variant="ghost" onClick={restoreLastReplace}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                撤销最近一次导入
               </Button>
             ) : null}
           </div>

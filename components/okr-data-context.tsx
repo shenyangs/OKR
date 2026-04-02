@@ -16,6 +16,7 @@ type KeyResultPatch = Partial<Omit<KeyResult, "id">>;
 type OkrDataContextValue = {
   objectives: Objective[];
   aiRewriteLogs: AiRewriteChangeLog[];
+  lastReplaceBackup: Objective[] | null;
   updateObjective: (objectiveId: string, patch: ObjectivePatch) => void;
   updateKeyResult: (objectiveId: string, krId: string, patch: KeyResultPatch) => void;
   applyAiRewrite: (payload: {
@@ -29,11 +30,13 @@ type OkrDataContextValue = {
   addKeyResult: (objectiveId: string, kr: Omit<KeyResult, "id">) => void;
   deleteKeyResult: (objectiveId: string, krId: string) => void;
   replaceObjectives: (nextObjectives: Objective[]) => void;
+  restoreLastReplace: () => void;
   resetObjectives: () => void;
 };
 
 const STORAGE_KEY = "okr-workbench-objectives-v2";
 const AI_REWRITE_LOG_STORAGE_KEY = "okr-workbench-ai-rewrite-logs-v1";
+const LAST_REPLACE_BACKUP_STORAGE_KEY = "okr-workbench-last-replace-backup-v1";
 
 const OkrDataContext = createContext<OkrDataContextValue | null>(null);
 
@@ -59,6 +62,7 @@ function buildNextKeyResult(kr: KeyResult, patch: KeyResultPatch) {
 export function OkrDataProvider({ children }: { children: React.ReactNode }) {
   const [objectives, setObjectives] = useState<Objective[]>(() => cloneObjectives(initialObjectives));
   const [aiRewriteLogs, setAiRewriteLogs] = useState<AiRewriteChangeLog[]>([]);
+  const [lastReplaceBackup, setLastReplaceBackup] = useState<Objective[] | null>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
@@ -70,6 +74,11 @@ export function OkrDataProvider({ children }: { children: React.ReactNode }) {
     if (savedLogs) {
       setAiRewriteLogs(JSON.parse(savedLogs) as AiRewriteChangeLog[]);
     }
+
+    const savedBackup = window.localStorage.getItem(LAST_REPLACE_BACKUP_STORAGE_KEY);
+    if (savedBackup) {
+      setLastReplaceBackup(JSON.parse(savedBackup) as Objective[]);
+    }
   }, []);
 
   useEffect(() => {
@@ -79,6 +88,15 @@ export function OkrDataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     window.localStorage.setItem(AI_REWRITE_LOG_STORAGE_KEY, JSON.stringify(aiRewriteLogs));
   }, [aiRewriteLogs]);
+
+  useEffect(() => {
+    if (lastReplaceBackup) {
+      window.localStorage.setItem(LAST_REPLACE_BACKUP_STORAGE_KEY, JSON.stringify(lastReplaceBackup));
+      return;
+    }
+
+    window.localStorage.removeItem(LAST_REPLACE_BACKUP_STORAGE_KEY);
+  }, [lastReplaceBackup]);
 
   function updateObjective(objectiveId: string, patch: ObjectivePatch) {
     setObjectives((current) =>
@@ -237,18 +255,32 @@ export function OkrDataProvider({ children }: { children: React.ReactNode }) {
   }
 
   function replaceObjectives(nextObjectives: Objective[]) {
-    setObjectives(cloneObjectives(nextObjectives));
+    setObjectives((current) => {
+      setLastReplaceBackup(cloneObjectives(current));
+      return cloneObjectives(nextObjectives);
+    });
+  }
+
+  function restoreLastReplace() {
+    if (!lastReplaceBackup) {
+      return;
+    }
+
+    setObjectives(cloneObjectives(lastReplaceBackup));
+    setLastReplaceBackup(null);
   }
 
   function resetObjectives() {
     setObjectives(cloneObjectives(initialObjectives));
     setAiRewriteLogs([]);
+    setLastReplaceBackup(null);
   }
 
   const value = useMemo(
     () => ({
       objectives,
       aiRewriteLogs,
+      lastReplaceBackup,
       updateObjective,
       updateKeyResult,
       applyAiRewrite,
@@ -257,9 +289,10 @@ export function OkrDataProvider({ children }: { children: React.ReactNode }) {
       addKeyResult,
       deleteKeyResult,
       replaceObjectives,
+      restoreLastReplace,
       resetObjectives
     }),
-    [aiRewriteLogs, objectives]
+    [aiRewriteLogs, lastReplaceBackup, objectives]
   );
 
   return <OkrDataContext.Provider value={value}>{children}</OkrDataContext.Provider>;

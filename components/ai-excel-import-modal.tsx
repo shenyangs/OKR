@@ -89,6 +89,10 @@ export function AiExcelImportModal({ open, file, onOpenChange, onApply }: AiExce
       return;
     }
 
+    if (!window.confirm("这会用 AI 整理结果替换当前页面里的全部 OKR 数据。确认继续吗？")) {
+      return;
+    }
+
     onApply(result.objectives);
     onOpenChange(false);
   }
